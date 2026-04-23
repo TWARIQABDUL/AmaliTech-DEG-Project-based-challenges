@@ -20,6 +20,7 @@ FinSafe needs you to build an **Idempotency Layer**. This is a middleware servic
 
 1.  **Architecture Diagram**
 
+```mermaid
 sequenceDiagram
     autonumber
     participant Client
@@ -59,6 +60,7 @@ sequenceDiagram
             Interceptor-->>Client: 200 OK (Saved Response)
         end
     end
+```
 
 ## 2. Technical Objective
 
