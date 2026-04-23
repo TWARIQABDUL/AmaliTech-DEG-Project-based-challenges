@@ -18,6 +18,48 @@ FinSafe needs you to build an **Idempotency Layer**. This is a middleware servic
 
 ---
 
+1.  **Architecture Diagram**
+
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Interceptor as IdempotencyInterceptor
+    participant Store as IdempotencyStore (ConcurrentHashMap)
+    participant Controller as PaymentController
+
+    Client->>Interceptor: POST /process-payment [Key: X, Payload: Y]
+    Interceptor->>Interceptor: Generate Hash from Payload Y
+    
+    %% The Lock / First Check
+    Interceptor->>Store: putIfAbsent(Key X, State(Hash, PROCESSING))
+    
+    alt Key Did Not Exist (First Request)
+        Store-->>Interceptor: Returns Null (Lock Acquired)
+        Interceptor->>Controller: Forward Request
+        Note over Controller: Simulates 2-second processing delay
+        Controller-->>Interceptor: 200 OK (Response: "Charged...")
+        Interceptor->>Store: update(Key X, State(Hash, COMPLETED, Response))
+        Interceptor-->>Client: 200 OK
+        
+    else Key Already Exists (Subsequent Requests)
+        Store-->>Interceptor: Returns Existing State
+        
+        alt Payload Hash Mismatch (Fraud/Error Check)
+            Interceptor-->>Client: 409 Conflict (Key used for different payload)
+            
+        else Status == COMPLETED (Standard Duplicate)
+            Interceptor-->>Client: 200 OK (Saved Response) + Header: X-Cache-Hit: true
+            
+        else Status == PROCESSING (Race Condition / In-Flight)
+            Note over Interceptor, Store: Thread blocks & polls until Status == COMPLETED
+            loop Every 100ms
+                Interceptor->>Store: Check State
+            end
+            Store-->>Interceptor: State updated to COMPLETED
+            Interceptor-->>Client: 200 OK (Saved Response)
+        end
+    end
+
 ## 2. Technical Objective
 
 Build a RESTful API that mimics a payment processing backend. It must check for a unique `Idempotency-Key` in the HTTP headers.
