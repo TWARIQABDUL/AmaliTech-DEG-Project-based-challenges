@@ -29,20 +29,28 @@ public class PaymentService {
         log.info("Processing payment for Idempotency-Key: {}", idempotencyKey);
         
         try {
-            log.info("Verifying Idempotency-Key: {}", idempotencyKey);
-            if (idopStore.verifyIdempotencyKey(idempotencyKey, record)) {
-                log.info("Idempotency-Key already exists: {}", idempotencyKey);
-                log.warn("Duplicate request detected for Idempotency-Key: {}", idempotencyKey);
-                return "Payment already processed";
-            }
-            log.info("Idempotency-Key does not exist: {}", idempotencyKey);
-            log.info("Saving Idempotency-Key: {}", idempotencyKey);
-            idopStore.save(idempotencyKey, record);
+            IdopRecord existingRecord = idopStore.getRecord(idempotencyKey);
 
+            if (existingRecord != null) {
+
+                // verifying the payload hash 
+                if (existingRecord.getRequestBodyHash().equals(record.getRequestBodyHash())) {
+                    log.info("Duplicate request with Idempotency-Key: {}", idempotencyKey);
+                    return "Idempotency-Key already processed";
+                } else {
+                    log.error("Duplicate Idempotency-Key with different payload for key: {}", idempotencyKey);
+                    return "Duplicate Idempotency-Key with different payload";
+                }
+                
+            }
+            log.info("Idempotency-Key does not exist. Saving new record: {}", idempotencyKey);
+            idopStore.save(idempotencyKey, record);
             
         } catch (Exception e) {
-            // TODO: handle exception
+            log.error("Error processing payment for key: {}. Error: {}", idempotencyKey, e.getMessage());
+            return "Error processing payment: " + e.getMessage();
         }
-        return "Payment processed successfully";
+            return "Payment processed successfully";
+
     }
 }
