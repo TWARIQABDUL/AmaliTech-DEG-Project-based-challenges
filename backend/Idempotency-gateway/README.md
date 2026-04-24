@@ -22,11 +22,11 @@ FinSafe needs you to build an **Idempotency Layer**. This is a middleware servic
 
 ```mermaid
 graph TD
-    A[Client sends POST Request] --> B[Interceptor extracts Key & Hashes Payload]
-    B --> C{Store.putIfAbsent}
+    A[Client POST /process-payment] --> B[PaymentService Hashes Payload]
+    B --> C{Store.putIfAbsent / Lock Key}
     
-    C -- "Key did NOT exist" --> D[Forward to Payment Controller]
-    D --> E[Process Payment]
+    C -- "Key did NOT exist" --> D[Lock Acquired: Set PROCESSING]
+    D --> E[Simulate 2-Second Payment]
     E --> F[Update Store: COMPLETED + Save Response]
     F --> G[Return 200 OK to Client]
     
@@ -36,10 +36,13 @@ graph TD
     
     H -- "Yes" --> J{What is the Saved Status?}
     
-    J -- "COMPLETED" --> K[Return Saved 200 OK Response]
+    J -- "COMPLETED" --> K[Return 200 OK + X-Cache-Hit Header]
     
-    J -- "PROCESSING" --> L[Wait 100ms & Check Again]
+    J -- "PROCESSING" --> L[Wait 1 Second & Check Again]
     L --> J
+    
+    %% Background Developer's Choice Feature
+    M((TTL Sweeper)) -.->|Runs Every 10 Mins| N[Evict Keys Older Than 12 Hours]
 ```
 
 ## 2. Technical Objective
