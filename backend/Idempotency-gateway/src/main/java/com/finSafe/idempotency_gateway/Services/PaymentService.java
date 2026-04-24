@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import com.finSafe.idempotency_gateway.Dto.IdopRecord;
 import com.finSafe.idempotency_gateway.Dto.PaymentRequestDto;
 import com.finSafe.idempotency_gateway.utils.IdopStore;
-
+import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,22 +29,47 @@ public class PaymentService {
         log.info("Processing payment for Idempotency-Key: {}", idempotencyKey);
         
         try {
-            IdopRecord existingRecord = idopStore.getRecord(idempotencyKey);
+            // IdopRecord existingRecord = idopStore.getRecord(idempotencyKey);
+            IdopRecord existingRecord = idopStore.lockKeyForProcessing(idempotencyKey, record);
 
             if (existingRecord != null) {
 
                 // verifying the payload hash 
                 if (existingRecord.getRequestBodyHash().equals(record.getRequestBodyHash())) {
                     log.info("Duplicate request with Idempotency-Key: {}", idempotencyKey);
-                    return "Idempotency-Key already processed";
+                    if(existingRecord.getState() == IdopRecord.Status.PROCESSING){
+                        log.info("Duplicate request is being processed");
+                        while (existingRecord.getState() == IdopRecord.Status.PROCESSING) {
+                            log.info("Waiting for payment to be processed");
+                            TimeUnit.SECONDS.sleep(1);
+                            existingRecord = idopStore.getRecord(idempotencyKey);
+                            if(existingRecord == null){
+                                log.error("Idempotency-Key not found");
+                                return "Idempotency-Key not found";
+                            }
+                        }
+                        log.info("Payment processed successfully for key: {}", idempotencyKey);
+                        return existingRecord.getResponseBody();
+                    }
+                    log.info("Payment processed successfully for key: {}", idempotencyKey);
+                    return existingRecord.getResponseBody();
                 } else {
                     log.error("Duplicate Idempotency-Key with different payload for key: {}", idempotencyKey);
                     return "Duplicate Idempotency-Key with different payload";
                 }
                 
             }
-            log.info("Idempotency-Key does not exist. Saving new record: {}", idempotencyKey);
-            idopStore.save(idempotencyKey, record);
+            try {
+                log.info("Idempotency-Key does not exist. Saving new record: {}", idempotencyKey);
+                log.info("Waiting for 2 seconds for payment processing");
+                TimeUnit.SECONDS.sleep(2);
+                idopStore.save(idempotencyKey, record);
+                
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            // log.info("Idempotency-Key does not exist. Saving new record: {}", idempotencyKey);
+            // idopStore.save(idempotencyKey, record);
             
         } catch (Exception e) {
             log.error("Error processing payment for key: {}. Error: {}", idempotencyKey, e.getMessage());

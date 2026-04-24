@@ -24,8 +24,10 @@ public class IdopStore {
         return store.get(idempotencyKey);
     }
 
-    
+    public IdopRecord lockKeyForProcessing(String idempotencyKey, IdopRecord record) {
 
-   
+        return store.putIfAbsent(idempotencyKey, record);
+    }
+
 
 }
