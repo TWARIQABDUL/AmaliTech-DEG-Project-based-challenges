@@ -1,7 +1,9 @@
 package com.finSafe.idempotency_gateway.utils;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.finSafe.idempotency_gateway.Dto.IdopRecord;
@@ -29,5 +31,20 @@ public class IdopStore {
         return store.putIfAbsent(idempotencyKey, record);
     }
 
+    @Scheduled(fixedRate = 600000)
+    public void cleanStalesKeys() {
+        log.info("Running TTL Cache Eviction Sweeper...");
 
+        long now = System.currentTimeMillis();
+        long twelveHours = TimeUnit.HOURS.toMillis(12);
+
+        store.entrySet().removeIf(entry -> {
+            boolean isStale = (now - entry.getValue().getCreatedAt()) > twelveHours;
+            if (isStale) {
+                log.info("Evicting stale Idempotency-Key: {}", entry.getKey());
+            }
+            return isStale;
+        });
+
+    }
 }

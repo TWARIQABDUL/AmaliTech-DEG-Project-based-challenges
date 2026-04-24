@@ -20,6 +20,7 @@ public class IdopRecord {
     private int responseStatus;
  
     private String responseBody;
+    private long createdAt;
  
 
 }
