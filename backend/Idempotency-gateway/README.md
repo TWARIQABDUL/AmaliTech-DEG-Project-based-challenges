@@ -51,6 +51,18 @@ This microservice is built with Java and Spring Boot. It uses `ConcurrentHashMap
 
 The server will boot up natively on port 8081 you can change it in `application.properties` to any port you want.
 
+**To run using Docker:**
+1. Build the Docker image:
+```bash
+cd backend/Idempotency-gateway
+docker build -t idempotency-gateway .
+```
+2. Run the Docker container:
+```bash
+docker run -p 8081:8081 idempotency-gateway
+```
+
+
 ## 3. API Documentation
 
 **Endpoint**
@@ -115,3 +127,5 @@ Idempotency key already used for a different request body.
 **The Solution:** I implemented a background scheduled task (`@Scheduled`) that acts as a Time-To-Live (TTL) Sweeper. It wakes up every 10 minutes, iterates through the `ConcurrentHashMap`, and safely evicts any transaction records older than 12 hours.
 
 **The Result:** This ensures the application maintains a lightweight memory footprint and remains highly performant in a production environment, while still providing a massive 12-hour safety net for duplicate requests and network timeouts.
+
+**Note:** the render service will take too long to load due to free plan limitations.
