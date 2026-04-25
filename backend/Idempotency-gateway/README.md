@@ -110,7 +110,7 @@ Idempotency key already used for a different request body.
 
 ## 5. The Developer's Choice: TTL Cache Eviction Sweeper
 
-**The Problem:** In a high-traffic FinTech application, storing idempotency keys in memory indefinitely is a critical liability that will inevitably result in a fatal `OutOfMemoryError`. Idempotency keys are typically only necessary during the immediate window of network retries.
+**The Problem:** In a high-traffic FinTech application, storing idempotency keys in memory is a critical liability that will inevitably result in a fatal `OutOfMemoryError`. Idempotency keys are only necessary during the immediate window of network retries.
 
 **The Solution:** I implemented a background scheduled task (`@Scheduled`) that acts as a Time-To-Live (TTL) Sweeper. It wakes up every 10 minutes, iterates through the `ConcurrentHashMap`, and safely evicts any transaction records older than 12 hours.
 
