@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.finSafe.idempotency_gateway.Dto.IdopRecord;
 import com.finSafe.idempotency_gateway.Dto.PaymentRequestDto;
+import com.finSafe.idempotency_gateway.utils.HashHelper;
 import com.finSafe.idempotency_gateway.utils.IdopStore;
 import java.util.concurrent.TimeUnit;
 
@@ -23,7 +24,7 @@ public class PaymentService {
         String successMessage = "Charged " + requestBody.getAmount() + " " + requestBody.getCurrency();
         IdopRecord record = new IdopRecord();
         record.setIdempotencyKey(idempotencyKey);
-        record.setRequestBodyHash(requestBody.toString());
+        record.setRequestBodyHash(HashHelper.hashPayload(requestBody));
         record.setState(IdopRecord.Status.PROCESSING);
         record.setResponseStatus(200);
         record.setResponseBody(successMessage);
